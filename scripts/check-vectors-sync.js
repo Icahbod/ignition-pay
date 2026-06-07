@@ -12,7 +12,7 @@ const packages = [
 ];
 
 let hasError = false;
-
+//ensure all packages have the same version as spec_version
 packages.forEach((filePath) => {
   const absolutePath = path.join(rootDir, filePath);
   if (!fs.existsSync(absolutePath)) return;
