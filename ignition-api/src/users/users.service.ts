@@ -29,6 +29,26 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // If email is being changed, ensure it's not already in use
+    if (updateDto.email && updateDto.email !== user.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: updateDto.email },
+      });
+      if (existing) {
+        throw new BadRequestException('Email already in use');
+      }
+    }
+
+    // Parse preferences JSON if provided
+    let parsedPreferences = user.preferences;
+    if (updateDto.preferences) {
+      try {
+        parsedPreferences = JSON.parse(updateDto.preferences);
+      } catch (err) {
+        throw new BadRequestException('Invalid preferences JSON');
+      }
+    }
+
     // Calculate stats
     const totalRaised = user.campaigns.reduce(
       (sum, campaign) => sum + parseFloat(campaign.raisedAmount.toString()),
@@ -75,6 +95,10 @@ export class UsersService {
     const updated = await this.prisma.user.update({
       where: { id: user.id },
       data: {
+        email: updateDto.email ?? user.email,
+        name: updateDto.name ?? user.name,
+        phone: updateDto.phone ?? (user as any).phone,
+        preferences: parsedPreferences,
         displayName: updateDto.displayName ?? user.displayName,
         bio: updateDto.bio ?? user.bio,
         avatarUrl: updateDto.avatarUrl ?? user.avatarUrl,

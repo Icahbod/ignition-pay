@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Put,
   Param,
   Body,
   UseGuards,
@@ -35,6 +36,29 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   async updateMyProfile(
+    @Request() req: any,
+    @Body() updateDto: UpdateUserDto,
+  ): Promise<UserProfileDto> {
+    return this.usersService.updateMyProfile(req.user.walletAddress, updateDto);
+  }
+
+  /**
+   * GET /users/profile
+   * Alternate route to retrieve authenticated user's profile
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getProfile(@Request() req: any): Promise<UserProfileDto> {
+    return this.usersService.getMyProfile(req.user.walletAddress);
+  }
+
+  /**
+   * PUT /users/profile
+   * Update authenticated user's profile (supports email, name, phone, preferences)
+   */
+  @UseGuards(JwtAuthGuard)
+  @Put('profile')
+  async putProfile(
     @Request() req: any,
     @Body() updateDto: UpdateUserDto,
   ): Promise<UserProfileDto> {

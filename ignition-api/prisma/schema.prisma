@@ -95,6 +95,8 @@ model User {
   email         String?   @unique
   displayName   String?
   name          String?
+  phone         String?
+  preferences   Json?
   role          UserRole  @default(USER)
   kycStatus     KycStatus @default(UNVERIFIED)
   bio           String?
