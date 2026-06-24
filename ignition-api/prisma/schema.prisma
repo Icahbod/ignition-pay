@@ -79,6 +79,12 @@ enum AuditActionType {
   ADMIN_ACTION
 }
 
+enum WalletNetwork {
+  STELLAR
+  ETHEREUM
+  BITCOIN
+}
+
 enum KYCStatus {
   PENDING
   VERIFIED
@@ -103,6 +109,7 @@ model User {
   bio           String?
   avatarUrl     String?
   socialLinks   Json?
+  verifiedStatus Boolean  @default(false)
   passwordHash  String?
   loginAttempts Int       @default(0)
   lockedUntil   DateTime?
@@ -119,6 +126,7 @@ model User {
   newsLetterSub Newsletter?
   auditLogs     AuditLog[]
   apiKeys       ApiKey[]
+  wallets       Wallet[]
 
   @@index([email])
   @@index([role])
@@ -312,6 +320,21 @@ model Newsletter {
 }
 
 /// AuditLog model for tracking system actions
+model EmailVerificationToken {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+/// AuditLog model for tracking system actions
 model AuditLog {
   id           String          @id @default(uuid())
   userId       String?
@@ -331,4 +354,26 @@ model AuditLog {
   @@index([resourceType])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+/// Wallet model representing a user's custodial wallet with deposit address and limits
+model Wallet {
+  id              String        @id @default(uuid())
+  userId          String
+  network         WalletNetwork @default(STELLAR)
+  depositAddress  String        @unique
+  label           String?
+  dailyLimit      Decimal       @default(1000) @db.Decimal(20, 7)
+  monthlyLimit    Decimal       @default(10000) @db.Decimal(20, 7)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([depositAddress])
+  @@index([network])
+  @@map("wallets")
 }
