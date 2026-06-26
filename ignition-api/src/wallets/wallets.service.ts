@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, ConflictException, Inject, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  NotFoundException,
+} from '@nestjs/common';
 import StellarSdk, { StrKey } from '@stellar/stellar-sdk';
 import { ConfigService } from '@nestjs/config';
 import Keyv from 'keyv';
@@ -32,23 +38,25 @@ export class WalletsService {
 
     const network = dto.network ?? WalletNetwork.STELLAR;
 
-    // Determine deposit address
-    let depositAddress = dto.depositAddress;
-    if (!depositAddress) {
-      // Auto-generate a Stellar keypair deposit address
-      const keypair = StellarSdk.Keypair.random();
-      depositAddress = keypair.publicKey();
-    }
+    // Determine deposit address (auto-generate if not provided)
+    const depositAddress = dto.depositAddress ?? StellarSdk.Keypair.random().publicKey();
 
     // Validate Stellar addresses
-    if (network === WalletNetwork.STELLAR && !StrKey.isValidEd25519PublicKey(depositAddress)) {
+    if (
+      network === WalletNetwork.STELLAR &&
+      !StrKey.isValidEd25519PublicKey(depositAddress)
+    ) {
       throw new BadRequestException('Invalid Stellar deposit address');
     }
 
     // Ensure deposit address is not already in use
-    const existing = await this.prisma.wallet.findUnique({ where: { depositAddress } });
+    const existing = await this.prisma.wallet.findUnique({
+      where: { depositAddress },
+    });
     if (existing) {
-      throw new ConflictException('Deposit address already assigned to another wallet');
+      throw new ConflictException(
+        'Deposit address already assigned to another wallet',
+      );
     }
 
     const wallet = await this.prisma.wallet.create({
@@ -94,7 +102,8 @@ export class WalletsService {
 
     const balances = (account.balances || []).map((b: any) => ({
       assetType: b.asset_type,
-      assetCode: b.asset_code ?? (b.asset_type === 'native' ? 'XLM' : undefined),
+      assetCode:
+        b.asset_code ?? (b.asset_type === 'native' ? 'XLM' : undefined),
       balance: b.balance,
     }));
 
@@ -112,14 +121,17 @@ export class WalletsService {
       from: r.from,
       to: r.to,
       amount: r.amount,
-      assetCode: r.asset_code ?? (r.asset_type === 'native' ? 'XLM' : undefined),
+      assetCode:
+        r.asset_code ?? (r.asset_type === 'native' ? 'XLM' : undefined),
       createdAt: r.created_at,
     }));
 
     const result = { balances, recentTransactions };
 
     // Cache result; TTL configurable in seconds (default 30s)
-    const ttlSec = Number(this.config.get<number>('BALANCE_CACHE_TTL_SEC') ?? 30);
+    const ttlSec = Number(
+      this.config.get<number>('BALANCE_CACHE_TTL_SEC') ?? 30,
+    );
     // Keyv expects ttl in milliseconds
     await this.cacheManager.set(cacheKey, result, ttlSec * 1000);
 
