@@ -15,7 +15,6 @@ import { Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Keyv from 'keyv';
 import { LoginResponseDto } from './dto/login.dto';
-import { Prisma, UserRole } from '@prisma/client';
 import { PasswordActionResponseDto } from './dto/password.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { SessionService } from '../session/session.service';

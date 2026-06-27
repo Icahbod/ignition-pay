@@ -5,15 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  Post,
   Req,
   UnauthorizedException,
   UseGuards,
-  Body,
-  Inject,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -21,15 +16,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import Keyv from 'keyv';
 
-import { SessionGuard, AuthenticatedRequest } from './session.guard';
-import { SessionService, SessionMetadata } from './session.service';
-
-class RefreshTokenDto {
-  refreshToken: string;
-}
+import {
+  AuthenticatedRequest,
+  SessionGuard,
+} from './session.guard';
+import { SessionMetadata, SessionService } from './session.service';
 
 class SessionInfoDto {
   sessionId: string;
@@ -41,71 +33,17 @@ class SessionInfoDto {
   isCurrent: boolean;
 }
 
+/**
+ * Session management endpoints (list / revoke / revoke-all).
+ *
+ * NOTE: /auth/refresh lives in `AuthRefreshController` (see Issue #110)
+ * to keep refresh logic isolated from session bookkeeping and to avoid
+ * route collisions. This controller only manages active sessions.
+ */
 @ApiTags('auth')
 @Controller('auth')
 export class SessionController {
-  constructor(
-    private readonly sessionService: SessionService,
-    private readonly jwt: JwtService,
-    private readonly config: ConfigService,
-    @Inject(CACHE_MANAGER) private readonly cache: Keyv,
-  ) {}
-
-  /**
-   * POST /auth/refresh
-   * Exchange a valid refresh token for a new access token.
-   * The existing session TTL is slid forward.
-   */
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token using a refresh token' })
-  @ApiResponse({ status: 200, description: 'New access token issued' })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-  async refresh(
-    @Body() dto: RefreshTokenDto,
-    @Req() req: Request,
-  ): Promise<{ accessToken: string; tokenType: 'Bearer' }> {
-    if (!dto?.refreshToken) {
-      throw new UnauthorizedException('Missing refresh token');
-    }
-
-    let payload: Record<string, unknown>;
-    try {
-      payload = this.jwt.verify(dto.refreshToken, {
-        secret: this.config.get<string>('REFRESH_TOKEN_SECRET', 'default-refresh-secret'),
-      }) as Record<string, unknown>;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
-
-    const sessionId = payload['sid'] as string | undefined;
-    if (!sessionId) {
-      throw new UnauthorizedException('Refresh token is missing session identifier');
-    }
-
-    const session = await this.sessionService.getSession(sessionId);
-    if (!session) {
-      throw new UnauthorizedException('Session has expired or been revoked');
-    }
-
-    // Slide the session TTL
-    await this.sessionService.touchSession(sessionId);
-
-    const accessToken = this.jwt.sign(
-      {
-        sub: session.userId,
-        walletAddress: session.walletAddress,
-        role: session.role,
-        sid: sessionId,
-      },
-      {
-        secret: this.config.get<string>('JWT_SECRET', 'stellaraid-default-secret'),
-        expiresIn: `${this.config.get<number>('SESSION_ACCESS_TTL_SECONDS', 900)}s`,
-      },
-    );
-
-    return { accessToken, tokenType: 'Bearer' };
-  }
+  constructor(private readonly sessionService: SessionService) {}
 
   /**
    * GET /auth/sessions
@@ -139,6 +77,9 @@ export class SessionController {
     @Req() req: AuthenticatedRequest,
     @Param('sessionId') sessionId: string,
   ): Promise<void> {
+    if (!req.user) {
+      throw new UnauthorizedException('Invalid token');
+    }
     // Users can only revoke their own sessions
     const session = await this.sessionService.getSession(sessionId);
     if (session && session.userId === req.user.userId) {

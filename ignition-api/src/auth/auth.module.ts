@@ -16,13 +16,16 @@ import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
+      ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET', 'stellaraid-default-secret'),
-        signOptions: { expiresIn: '15m' },
+        signOptions: {
+          expiresIn: `${config.get<number>('SESSION_ACCESS_TTL_SECONDS', 900)}s`,
+        },
       }),
     }),
     PrismaModule,

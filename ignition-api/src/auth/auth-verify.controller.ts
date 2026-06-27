@@ -1,23 +1,28 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Post,
-  Body,
   UnauthorizedException,
-  BadRequestException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import {
-  ApiProperty,
-  ApiTags,
+  ApiBody,
   ApiOperation,
+  ApiProperty,
   ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import { AuthChallengeService } from './auth-challenge.service';
+
+import { PrismaService } from '../prisma/prisma.service';
+import { SessionService } from '../session/session.service';
+import { AuthTokenService } from './auth-token.service';
+import { LoginResponseDto } from '../users/dto/login.dto';
 
 export class VerifyDto {
   @ApiProperty({ example: 'G...wallet-address' })
@@ -34,22 +39,26 @@ export class AuthResponse {
   @ApiProperty({ example: 'eyJhbGci...' })
   accessToken: string;
 
-  @ApiProperty({ example: 'Bearer', enum: ['Bearer', 'bearer'] })
-  tokenType: 'Bearer' | 'bearer';
+  @ApiProperty({ example: 'eyJhbGci...' })
+  refreshToken: string;
+
+  @ApiProperty({ example: 'Bearer', enum: ['Bearer'] })
+  tokenType: 'Bearer';
 }
 
 /**
- * POST /auth/verify
+ * POST /auth/verify — Stellar wallet login.
  *
- * Verifies the Ed25519 signature, upserts the user on first login (#225),
- * applies the admin-wallet allowlist (#222), and returns a signed JWT.
+ * Verifies the Ed25519 signature, upserts the user (issues #222 and #225),
+ * opens a tracked session, and returns a (access, refresh) token pair
+ * minted by AuthTokenService. Issue #110: refresh tokens are issued here
+ * so wallet-authenticated users can call /auth/refresh without re-signing.
  */
 @ApiTags('auth')
 @Controller('auth')
 @Throttle({ strict: { limit: 5, ttl: 60_000 } })
 export class AuthVerifyController {
   constructor(
-    private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly challengeService: AuthChallengeService,
@@ -97,7 +106,7 @@ export class AuthVerifyController {
       ? UserRole.ADMIN
       : undefined;
 
-    // Issue #225: upsert user — create with defaults on first login
+    // Issue #225: upsert user on first login
     const displayName = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
 
     const user = await this.prisma.user.upsert({
@@ -112,12 +121,19 @@ export class AuthVerifyController {
 
     const role = roleFromAllowlist ?? user.role;
 
-    const accessToken = this.jwt.sign({
-      sub: user.id,
-      walletAddress,
-      role,
+    // Issue #110: open a session and mint access + refresh tokens.
+    // SessionGuard-authenticated endpoints (e.g. /auth/logout) require
+    // the `sid` claim, so we always create a session here.
+    const roleValue = String(role);
+    const session = await this.sessionService.createSession({
+      userId: user.id,
+      walletAddress: user.walletAddress,
+      role: roleValue,
     });
 
-    return { accessToken, tokenType: 'Bearer' };
+    return this.tokenService.issueTokenPair(
+      { id: user.id, walletAddress: user.walletAddress, role: roleValue },
+      session.sessionId,
+    );
   }
 }

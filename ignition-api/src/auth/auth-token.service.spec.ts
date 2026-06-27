@@ -270,4 +270,126 @@ describe('AuthTokenService', () => {
       }
     });
   });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Issue #110 — refresh token issuance and revocation
+  // ────────────────────────────────────────────────────────────────────────
+
+  describe('issueTokenPair', () => {
+    it('mints access + refresh tokens with correct access claims', async () => {
+      jwt.sign
+        .mockReturnValueOnce(newAccessToken)
+        .mockReturnValueOnce(newRefreshToken);
+
+      const result = await service.issueTokenPair(testUser);
+
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: testUser.id,
+          walletAddress: testUser.walletAddress,
+          role: testUser.role,
+        }),
+        expect.objectContaining({
+          secret: 'test-jwt-secret',
+          expiresIn: '15m',
+        }),
+      );
+      expect(result).toEqual({
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        tokenType: 'Bearer',
+      });
+    });
+
+    it('embeds sid in both tokens when sessionId is provided', async () => {
+      jwt.sign
+        .mockReturnValueOnce(newAccessToken)
+        .mockReturnValueOnce(newRefreshToken);
+
+      await service.issueTokenPair(testUser, 'sess-abc');
+
+      // First call signs the access token: must carry sid plus standard claims.
+      expect(jwt.sign.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          sub: testUser.id,
+          walletAddress: testUser.walletAddress,
+          role: testUser.role,
+          sid: 'sess-abc',
+        }),
+      );
+
+      // Second call signs the refresh token: must carry { sub, sid }.
+      expect(jwt.sign.mock.calls[1][0]).toEqual({
+        sub: testUser.id,
+        sid: 'sess-abc',
+      });
+    });
+
+    it('omits sid claim when sessionId is not provided', async () => {
+      jwt.sign
+        .mockReturnValueOnce(newAccessToken)
+        .mockReturnValueOnce(newRefreshToken);
+
+      await service.issueTokenPair(testUser);
+
+      // The second call (refresh token) should be { sub } only
+      const refreshCall = jwt.sign.mock.calls[1];
+      expect(refreshCall[0]).toEqual({ sub: testUser.id });
+      expect(refreshCall[0]).not.toHaveProperty('sid');
+    });
+
+    it('writes the refresh token to cache under refresh:{walletAddress}', async () => {
+      jwt.sign
+        .mockReturnValueOnce(newAccessToken)
+        .mockReturnValueOnce(newRefreshToken);
+
+      await service.issueTokenPair(testUser);
+
+      expect(cache.set).toHaveBeenCalledWith(
+        `refresh:${testUser.walletAddress}`,
+        newRefreshToken,
+        7 * 24 * 60 * 60 * 1000,
+      );
+    });
+
+    it('returns 503 when cache.set fails', async () => {
+      jwt.sign
+        .mockReturnValueOnce(newAccessToken)
+        .mockReturnValueOnce(newRefreshToken);
+
+      cache.set.mockRejectedValue(new Error('Redis write error'));
+
+      await expect(service.issueTokenPair(testUser)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+  });
+
+  describe('revokeRefreshToken', () => {
+    it('deletes the refresh token for the given wallet address', async () => {
+      cache.delete.mockResolvedValue(true);
+
+      await service.revokeRefreshToken(testUser.walletAddress);
+
+      expect(cache.delete).toHaveBeenCalledWith(
+        `refresh:${testUser.walletAddress}`,
+      );
+    });
+
+    it('is a no-op when walletAddress is null or empty', async () => {
+      await service.revokeRefreshToken(null);
+      await service.revokeRefreshToken(undefined);
+      await service.revokeRefreshToken('');
+
+      expect(cache.delete).not.toHaveBeenCalled();
+    });
+
+    it('returns 503 when cache.delete throws', async () => {
+      cache.delete.mockRejectedValue(new Error('Redis error'));
+
+      await expect(
+        service.revokeRefreshToken(testUser.walletAddress),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+  });
 });
