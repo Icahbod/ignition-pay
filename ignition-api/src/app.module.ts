@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LoggingInterceptor } from './common/logging/logging.interceptor';
+import { LoggerModule } from './common/logging/logger.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisModule } from './redis/redis.module';
@@ -21,6 +22,8 @@ import { SessionModule } from './session/session.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { ConfigValidationService } from './config/validation';
 import { CryptoModule } from './common/crypto/crypto.module';
+import { SentryMiddleware } from './common/sentry/sentry.middleware';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -28,6 +31,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
       isGlobal: true,
     }),
     CryptoModule,
+    LoggerModule,
     PrismaModule,
     QueueModule,
     RedisModule,
@@ -41,6 +45,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
     WalletsModule,
     TransactionsModule,
     AddressesModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -56,4 +61,8 @@ import { CryptoModule } from './common/crypto/crypto.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(SentryMiddleware).forRoutes('*');
+  }
+}
