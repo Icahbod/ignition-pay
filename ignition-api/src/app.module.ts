@@ -19,6 +19,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { SessionModule } from './session/session.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { ConfigValidationService } from './config/validation';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AddressesModule } from './addresses/addresses.module';
   controllers: [AppController],
   providers: [
     AppService,
+    ConfigValidationService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,

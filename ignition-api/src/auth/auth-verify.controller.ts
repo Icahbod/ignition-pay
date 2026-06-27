@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
-import { Keypair } from '@stellar/stellar-sdk';
+import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import {
   ApiBody,
   ApiOperation,
@@ -20,8 +20,6 @@ import { UserRole } from '@prisma/client';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { IsStellarPublicKey } from '../common/decorators/is-stellar-public-key.decorator';
 import { AuthChallengeService } from './auth-challenge.service';
-
-import { PrismaService } from '../prisma/prisma.service';
 import { SessionService } from '../session/session.service';
 import { AuthTokenService } from './auth-token.service';
 import { LoginResponseDto } from '../users/dto/login.dto';
@@ -71,6 +69,8 @@ export class AuthVerifyController {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly challengeService: AuthChallengeService,
+    private readonly sessionService: SessionService,
+    private readonly tokenService: AuthTokenService,
   ) {}
 
   @Post('verify')
@@ -102,6 +102,13 @@ export class AuthVerifyController {
       .split(',')
       .map((w) => w.trim())
       .filter(Boolean);
+
+    // Validate all admin wallet addresses (extra layer, though already validated at startup)
+    for (const wallet of adminWallets) {
+      if (!StrKey.isValidEd25519PublicKey(wallet)) {
+        throw new Error(`Invalid Stellar public key in ADMIN_WALLETS: "${wallet}"`);
+      }
+    }
 
     const isAdmin = adminWallets.includes(walletAddress);
     const roleFromAllowlist: UserRole | undefined = isAdmin
