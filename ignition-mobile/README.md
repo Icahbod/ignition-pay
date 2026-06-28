@@ -20,11 +20,11 @@ flutter run
 
 ## Build Targets
 
-| Platform | Command |
-|----------|---------|
-| Android | `flutter build apk` |
-| iOS | `flutter build ios` |
-| Web | `flutter build web` |
+| Platform | Command             |
+| -------- | ------------------- |
+| Android  | `flutter build apk` |
+| iOS      | `flutter build ios` |
+| Web      | `flutter build web` |
 
 ## Features
 

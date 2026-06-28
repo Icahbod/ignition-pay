@@ -1,7 +1,5 @@
 import '../address/detect.dart';
 import '../address/codes.dart';
-import '../muxed/decode.dart';
-import '../exceptions.dart';
 import 'transaction.dart';
 
 /// Exception thrown when transaction validation fails.
@@ -161,8 +159,7 @@ class TransactionBuilder {
     }
     final kind = detect(account);
     if (kind == null || kind == AddressKind.c) {
-      _errors.add(
-          'Invalid source account: must be a valid G or M address');
+      _errors.add('Invalid source account: must be a valid G or M address');
     }
   }
 
@@ -173,8 +170,7 @@ class TransactionBuilder {
     }
     final kind = detect(destination);
     if (kind == null) {
-      _errors.add(
-          'Invalid destination: must be a valid Stellar address');
+      _errors.add('Invalid destination: must be a valid Stellar address');
     }
   }
 
@@ -258,8 +254,7 @@ List<String> validateTransaction(Transaction transaction) {
     }
     final amount = num.tryParse(op.amount);
     if (amount == null || amount <= 0) {
-      errors.add(
-          'Operation $i: invalid amount "${op.amount}"');
+      errors.add('Operation $i: invalid amount "${op.amount}"');
     }
   }
 

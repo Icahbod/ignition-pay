@@ -96,8 +96,7 @@ void main() {
     });
 
     test('supports multiple operations', () {
-      const dest2 =
-          'GDXJQBQN6X3CRN5X7LQZ5X7LQZ5X7LQZ5X7LQZ5X7LQZ5X7LQZ5X7LQZ5';
+      const dest2 = 'GDXJQBQN6X3CRN5X7LQZ5X7LQZ5X7LQZ5X7LQZ5X7LQZ5X7LQZ5X7LQZ5';
       final tx = TransactionBuilder()
           .setSourceAccount(validGAddress)
           .setSequenceNumber(BigInt.from(1))
@@ -154,7 +153,8 @@ void main() {
         sourceAccount: validGAddress,
         sequenceNumber: BigInt.from(1),
         operations: [
-          PaymentOperation(destination: validDestination, asset: 'XLM', amount: '10'),
+          const PaymentOperation(
+              destination: validDestination, asset: 'XLM', amount: '10'),
         ],
       );
 
@@ -184,7 +184,8 @@ void main() {
         sourceAccount: validGAddress,
         sequenceNumber: BigInt.from(1),
         operations: [
-          PaymentOperation(destination: validDestination, asset: 'XLM', amount: '10'),
+          const PaymentOperation(
+              destination: validDestination, asset: 'XLM', amount: '10'),
         ],
       );
 
@@ -217,7 +218,8 @@ void main() {
         timeBoundMin: DateTime.fromMillisecondsSinceEpoch(0),
         timeBoundMax: DateTime.fromMillisecondsSinceEpoch(1000000),
         operations: [
-          PaymentOperation(destination: validDestination, asset: 'XLM', amount: '50'),
+          const PaymentOperation(
+              destination: validDestination, asset: 'XLM', amount: '50'),
         ],
       );
 

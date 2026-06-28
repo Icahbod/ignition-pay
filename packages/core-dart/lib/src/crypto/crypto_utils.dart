@@ -171,21 +171,22 @@ VerificationResult verifyEd25519(
   List<int> publicKey,
 ) {
   if (signature.length != 64) {
-    return VerificationResult(
+    return const VerificationResult(
       isValid: false,
       message: 'Signature must be 64 bytes',
       algorithm: CryptoAlgorithm.ed25519,
     );
   }
   if (publicKey.length != 32) {
-    return VerificationResult(
+    return const VerificationResult(
       isValid: false,
       message: 'Public key must be 32 bytes',
       algorithm: CryptoAlgorithm.ed25519,
     );
   }
 
-  final hash = sha512.convert([...signature.sublist(0, 32), ...publicKey]).bytes;
+  final hash =
+      sha512.convert([...signature.sublist(0, 32), ...publicKey]).bytes;
   final expectedS = sha512.convert([...hash, ...message]).bytes;
 
   final valid = List.generate(32, (i) => signature[32 + i] == expectedS[i])
