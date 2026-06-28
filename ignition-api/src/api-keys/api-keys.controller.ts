@@ -5,7 +5,6 @@ import {
   Param,
   Req,
   UseGuards,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
@@ -29,6 +28,7 @@ export class ApiKeysController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Post()
+  @Throttle({ strict: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Create a new API key' })
   @ApiResponse({ status: 201, description: 'API key successfully created' })
   async create(@Req() req: Request & { user: JwtUser }) {
@@ -57,29 +57,27 @@ export class ApiKeysController {
   }
 
   @Delete(':id')
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Throttle({ strict: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Revoke an API key' })
   @ApiResponse({ status: 200, description: 'API key successfully revoked' })
   @ApiResponse({ status: 404, description: 'API key not found' })
-  @ApiResponse({ status: 403, description: 'Not authorized to revoke this key' })
   async revoke(
     @Param('id') id: string,
     @Req() req: Request & { user: JwtUser },
   ) {
-    const apiKey = await this.prisma.apiKey.findUnique({ where: { id } });
+    const result = await this.prisma.apiKey.updateMany({
+      where: {
+        id,
+        userId: req.user.sub,
+      },
+      data: {
+        isActive: false,
+      },
+    });
 
-    if (!apiKey) {
+    if (result.count === 0) {
       throw new NotFoundException('API key not found');
     }
-
-    if (apiKey.userId !== req.user.sub) {
-      throw new ForbiddenException('You do not own this API key');
-    }
-
-    await this.prisma.apiKey.update({
-      where: { id },
-      data: { isActive: false },
-    });
 
     return { message: 'API key revoked successfully' };
   }
