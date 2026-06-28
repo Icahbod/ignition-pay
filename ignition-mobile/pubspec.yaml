@@ -28,6 +28,9 @@ dependencies:
   crypto: ^3.0.7
 
 dev_dependencies:
+  # On-device end-to-end suite. Single entry point: integration_test/app_test.dart.
+  # Run a subset via --dart-define=SCENARIO=<app_launch|deep_link|auth_flow|android|ios|all>.
+  # See ignition-mobile/README_INTEGRATION_TESTING.md for caveats.
   flutter_test:
     sdk: flutter
   integration_test:
@@ -37,11 +40,11 @@ dev_dependencies:
   test: ^1.24.0
   mockito: ^5.4.4
   mocktail: ^1.0.3
-  build_runner: ^2.4.0
-  flutter_lints: ^3.0.1
   build_runner: ^2.4.15
   freezed: ^2.5.8
   json_serializable: ^6.9.4
+  flutter_lints: ^3.0.1
+
 
 flutter:
   uses-material-design: true

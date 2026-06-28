@@ -8,6 +8,12 @@ class ApiClient {
   ApiClient._internal();
 
   late final Dio dio;
+  bool _initialized = false;
+
+  /// True after [initialize] has been called and the underlying [dio] is
+  /// ready to dispatch requests.
+  bool get isInitialized => _initialized;
+
   final EnvConfig _envConfig = EnvConfig();
 
   void initialize() {
@@ -63,6 +69,8 @@ class ApiClient {
         responseBody: true,
       ));
     }
+
+    _initialized = true;
   }
 
   void _handleTokenRefresh(DioException e, ErrorInterceptorHandler handler) async {
