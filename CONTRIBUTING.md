@@ -14,6 +14,13 @@ The most impactful way to contribute is by adding new test vectors to `spec/vect
 *   Check the [Issues](https://github.com/Boxkit-Labs/stellar-address-kit/issues) to see if the bug has already been reported.
 *   If not, open a new issue with a clear title and description, including steps to reproduce the bug.
 
+#### Triaging and Labeling Issues
+When triaging issues, please ensure they are properly labeled to help maintainers organize work. Examples:
+*   **bug**: Something isn't working. (e.g., `bug`, `priority:high`)
+*   **enhancement**: New feature or request. (e.g., `enhancement`, `needs-discussion`)
+*   **documentation**: Improvements or additions to documentation. (e.g., `documentation`)
+*   **good first issue**: Good for newcomers. (e.g., `good first issue`, `help wanted`)
+
 #### Suggesting Enhancements
 *   Open an issue to discuss your idea.
 *   Clearly explain why this enhancement would be useful to others.
