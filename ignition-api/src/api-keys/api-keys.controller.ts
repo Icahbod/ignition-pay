@@ -20,7 +20,11 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { createHash, randomBytes } from 'crypto';
 import { Request } from 'express';
+import { AdminGuard } from '../users/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions/permissions.guard';
+import { Permission } from '../auth/permissions/permissions.map';
+import { RequirePermissions } from '../auth/permissions/require-permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface JwtUser {
@@ -113,6 +117,41 @@ export class ApiKeysController {
     });
 
     return { apiKeys };
+  }
+
+  @Get('admin/users/:userId')
+  @UseGuards(JwtAuthGuard, AdminGuard, PermissionsGuard)
+  @RequirePermissions(Permission.APIKEY_MANAGE_ANY)
+  @ApiOperation({ summary: 'List API keys for a specific user (admin)' })
+  @ApiResponse({ status: 200, description: 'User API keys retrieved successfully' })
+  async listForUser(@Param('userId') userId: string) {
+    const apiKeys = await this.prisma.apiKey.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        prefix: true,
+        scope: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastUsedAt: true,
+        expiresAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      userId,
+      apiKeys: apiKeys.map((apiKey) => ({
+        ...apiKey,
+        status: apiKey.isActive ? 'active' : 'revoked',
+      })),
+    };
   }
 
   @Patch(':id')

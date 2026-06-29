@@ -186,6 +186,39 @@ describe('ApiKeysController', () => {
     });
   });
 
+  it('lists API keys for a specific user as an admin', async () => {
+    prisma.apiKey.findMany.mockResolvedValue([
+      {
+        id: 'api-key-1',
+        name: 'Production Key',
+        prefix: 'sk_12345678',
+        scope: 'read',
+        isActive: false,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: null,
+        expiresAt: null,
+      },
+    ]);
+
+    const result = await controller.listForUser('user-2');
+
+    expect(prisma.apiKey.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-2' },
+      }),
+    );
+    expect(result).toEqual({
+      userId: 'user-2',
+      apiKeys: [
+        expect.objectContaining({
+          id: 'api-key-1',
+          status: 'revoked',
+        }),
+      ],
+    });
+  });
+
   it('updates API key metadata', async () => {
     prisma.apiKey.findFirst.mockResolvedValue({
       id: 'api-key-1',
