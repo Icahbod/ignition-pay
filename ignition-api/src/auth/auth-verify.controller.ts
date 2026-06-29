@@ -123,17 +123,19 @@ export class AuthVerifyController {
       ? UserRole.ADMIN
       : undefined;
 
-    // Issue #225: upsert user on first login
+    // Issue #225 / #130: upsert user + resolve role atomically in a transaction
     const displayName = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
 
-    const user = await this.prisma.user.upsert({
-      where: { walletAddress },
-      create: {
-        walletAddress,
-        displayName,
-        role: roleFromAllowlist ?? UserRole.USER,
-      },
-      update: roleFromAllowlist ? { role: roleFromAllowlist } : {},
+    const user = await this.prisma.$transaction(async (tx) => {
+      return tx.user.upsert({
+        where: { walletAddress },
+        create: {
+          walletAddress,
+          displayName,
+          role: roleFromAllowlist ?? UserRole.USER,
+        },
+        update: roleFromAllowlist ? { role: roleFromAllowlist } : {},
+      });
     });
 
     const role = roleFromAllowlist ?? user.role;

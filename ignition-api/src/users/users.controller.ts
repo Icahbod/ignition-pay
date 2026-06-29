@@ -8,6 +8,7 @@ import {
   Body,
   UseGuards,
   Request,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
@@ -40,8 +41,20 @@ interface AuthenticatedRequest {
   user: {
     sub?: string;
     userId?: string;
-    walletAddress: string;
+    walletAddress?: string;
   };
+}
+
+/**
+ * Extracts and validates walletAddress from the JWT user payload.
+ * Throws UnauthorizedException if missing or empty (Issue #127).
+ */
+function resolveWalletAddress(req: AuthenticatedRequest): string {
+  const addr = req.user?.walletAddress;
+  if (!addr) {
+    throw new UnauthorizedException('Wallet address not found in token');
+  }
+  return addr;
 }
 
 @ApiTags('users')
@@ -104,7 +117,7 @@ export class UsersController {
   ): Promise<PasswordActionResponseDto> {
     return this.usersService.setupPassword({
       userId: req.user.sub,
-      walletAddress: req.user.walletAddress,
+      walletAddress: resolveWalletAddress(req),
       password: dto.password,
     });
   }
@@ -121,7 +134,7 @@ export class UsersController {
   ): Promise<PasswordActionResponseDto> {
     return this.usersService.changePassword({
       userId: req.user.sub,
-      walletAddress: req.user.walletAddress,
+      walletAddress: resolveWalletAddress(req),
       currentPassword: dto.currentPassword,
       newPassword: dto.newPassword,
     });
@@ -136,7 +149,7 @@ export class UsersController {
   async getMyProfile(
     @Request() req: AuthenticatedRequest,
   ): Promise<UserProfileDto> {
-    return this.usersService.getMyProfile(req.user.walletAddress);
+    return this.usersService.getMyProfile(resolveWalletAddress(req));
   }
 
   /**
@@ -159,7 +172,7 @@ export class UsersController {
     @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateUserDto,
   ): Promise<UserProfileDto> {
-    return this.usersService.updateMyProfile(req.user.walletAddress, updateDto);
+    return this.usersService.updateMyProfile(resolveWalletAddress(req), updateDto);
   }
 
   /**
@@ -170,7 +183,7 @@ export class UsersController {
   async getProfile(
     @Request() req: AuthenticatedRequest,
   ): Promise<UserProfileDto> {
-    return this.usersService.getMyProfile(req.user.walletAddress);
+    return this.usersService.getMyProfile(resolveWalletAddress(req));
   }
 
   /**
@@ -182,7 +195,7 @@ export class UsersController {
     @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateUserDto,
   ): Promise<UserProfileDto> {
-    return this.usersService.updateMyProfile(req.user.walletAddress, updateDto);
+    return this.usersService.updateMyProfile(resolveWalletAddress(req), updateDto);
   }
 
   /**
@@ -216,7 +229,7 @@ export class AdminUsersController {
     return this.usersService.updateKYCStatus(
       userId,
       updateDto.status,
-      req.user.walletAddress,
+      resolveWalletAddress(req),
     );
   }
 

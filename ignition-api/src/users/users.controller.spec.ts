@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { UnauthorizedException } from '@nestjs/common';
 import { UsersController, AdminUsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { PermissionsService } from '../auth/permissions/permissions.service';
@@ -178,6 +179,62 @@ describe('UsersController & AdminUsersController', () => {
       const res = await adminUsersController.updateUserRole('user-1', dto, req);
       expect(usersService.updateUserRole).toHaveBeenCalledWith('user-1', UserRole.ADMIN, 'admin-1');
       expect(res).toEqual({ success: true, message: 'Role updated' });
+    });
+  });
+
+  // Issue #127 & #128: defensive walletAddress handling and missing coverage
+  describe('defensive walletAddress handling (Issue #127)', () => {
+    it('getMyProfile() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: {} };
+      await expect(usersController.getMyProfile(req as any)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('updateMyProfile() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: {} };
+      await expect(
+        usersController.updateMyProfile(req as any, { displayName: 'Test' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('getProfile() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: {} };
+      await expect(usersController.getProfile(req as any)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('putProfile() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: {} };
+      await expect(
+        usersController.putProfile(req as any, { displayName: 'Test' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('setupPassword() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: { sub: 'user-1' } };
+      await expect(
+        usersController.setupPassword(req as any, { password: 'Pass123!' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('changePassword() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: { sub: 'user-1' } };
+      await expect(
+        usersController.changePassword(req as any, {
+          currentPassword: 'Old1!',
+          newPassword: 'New1!',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('updateKYCStatus() throws UnauthorizedException when walletAddress is missing', async () => {
+      const req = { user: {} };
+      const dto = { status: KycStatus.VERIFIED };
+      await expect(
+        adminUsersController.updateKYCStatus('user-1', dto, req as any),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });

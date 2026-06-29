@@ -14,7 +14,7 @@ const TEST_WALLET_SECRET = TEST_KEYPAIR.secret();
 const TEST_WALLET_PUBLIC = TEST_KEYPAIR.publicKey();
 
 interface PartialVerifyDeps {
-  prisma?: jest.Mocked<Pick<PrismaService, 'user'>>;
+  prisma?: jest.Mocked<Pick<PrismaService, 'user' | '$transaction'>>;
   config?: ConfigService;
   challengeService?: jest.Mocked<Pick<AuthChallengeService, 'consumeChallenge'>>;
   sessionService?: jest.Mocked<Pick<SessionService, 'createSession'>>;
@@ -28,14 +28,17 @@ function makeController(overrides: PartialVerifyDeps = {}): {
   sessionService: any;
   tokenService: any;
 } {
+  const upsertMock = jest.fn().mockResolvedValue({
+    id: 'user-1',
+    walletAddress: TEST_WALLET_PUBLIC,
+    role: 'USER',
+  });
+  // Issue #130: upsert is now executed inside prisma.$transaction
   const prisma = {
-    user: {
-      upsert: jest.fn().mockResolvedValue({
-        id: 'user-1',
-        walletAddress: TEST_WALLET_PUBLIC,
-        role: 'USER',
-      }),
-    },
+    user: { upsert: upsertMock },
+    $transaction: jest.fn().mockImplementation((fn: (tx: any) => Promise<any>) =>
+      fn({ user: { upsert: upsertMock } }),
+    ),
   };
   const config = new ConfigService({
     ADMIN_WALLETS: '',
@@ -117,7 +120,7 @@ describe('AuthVerifyController', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('upserts the user, opens a session, and mints a token pair (Issue #110)', async () => {
+    it('upserts the user atomically in a transaction, opens a session, and mints a token pair (Issues #110, #130)', async () => {
       const challenge = 'stellaraid:login:nonce:ts';
       const signedChallenge = signChallenge(challenge);
 
@@ -128,7 +131,10 @@ describe('AuthVerifyController', () => {
         challenge,
       });
 
-      // 1. Upserted the user from the wallet address
+      // 1. User upsert was wrapped in a transaction (Issue #130)
+      expect(prisma.$transaction).toHaveBeenCalled();
+
+      // 2. Upserted the user from the wallet address inside the transaction
       expect(prisma.user.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { walletAddress: TEST_WALLET_PUBLIC },
@@ -136,7 +142,7 @@ describe('AuthVerifyController', () => {
         }),
       );
 
-      // 2. Opened a tracked session in Redis
+      // 3. Opened a tracked session in Redis
       expect(sessionService.createSession).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-1',
@@ -145,7 +151,7 @@ describe('AuthVerifyController', () => {
         }),
       );
 
-      // 3. Minted access + refresh tokens with the new session id
+      // 4. Minted access + refresh tokens with the new session id
       expect(tokenService.issueTokenPair).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'user-1',
@@ -154,7 +160,7 @@ describe('AuthVerifyController', () => {
         'sess-1',
       );
 
-      // 4. Returned the tokens
+      // 5. Returned the tokens
       expect(result).toEqual({
         accessToken: 'access-xyz',
         refreshToken: 'refresh-xyz',
