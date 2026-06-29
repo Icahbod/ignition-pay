@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { APP_VERSION } from '@/lib/version'
 
 export function SettingsPage() {
   const [showSeed, setShowSeed] = useState(false)
@@ -89,12 +90,20 @@ export function SettingsPage() {
               </Button>
             </div>
 
-            <div className="flex items-center justify-between py-4">
+            <div className="flex items-center justify-between py-4 border-b border-border">
               <div>
                 <p className="font-semibold text-foreground">Account Created</p>
                 <p className="text-sm text-muted-foreground">432 days ago</p>
               </div>
               <div className="text-sm text-muted-foreground">Since Jan 1, 2023</div>
+            </div>
+
+            <div className="flex items-center justify-between py-4">
+              <div>
+                <p className="font-semibold text-foreground">App Version</p>
+                <p className="text-sm text-muted-foreground">Semantic version shown in settings</p>
+              </div>
+              <div className="text-sm font-medium text-foreground">v{APP_VERSION}</div>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Controller,
   Delete,
   NotFoundException,
@@ -40,6 +41,17 @@ export class ApiKeysController {
     const rawKey = `sk_${randomBytes(32).toString('hex')}`;
     const prefix = rawKey.slice(0, 12);
     const keyHash = createHash('sha256').update(rawKey).digest('hex');
+
+    const existingActiveKey = await this.prisma.apiKey.findFirst({
+      where: {
+        prefix,
+        isActive: true,
+      },
+    });
+
+    if (existingActiveKey) {
+      throw new ConflictException('An active API key already exists for this prefix');
+    }
 
     const apiKey = await this.prisma.apiKey.create({
       data: {

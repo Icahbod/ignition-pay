@@ -29,6 +29,7 @@ describe('ApiKeysController', () => {
   });
 
   it('creates a new API key for the authenticated user', async () => {
+    prisma.apiKey.findFirst.mockResolvedValue(null);
     prisma.apiKey.create.mockResolvedValue({
       id: 'api-key-1',
       prefix: 'sk_12345678',
@@ -62,6 +63,24 @@ describe('ApiKeysController', () => {
         scope: 'read',
       }),
     );
+  });
+
+  it('rejects creating a new API key when an active key already uses the generated prefix', async () => {
+    prisma.apiKey.findFirst.mockResolvedValue({
+      id: 'api-key-existing',
+      prefix: 'sk_12345678',
+      isActive: true,
+    });
+
+    await expect(
+      controller.create({
+        user: {
+          sub: 'user-1',
+          walletAddress: 'GABC',
+          role: 'USER',
+        },
+      } as never),
+    ).rejects.toThrow('An active API key already exists for this prefix');
   });
 
   it('revokes an owned API key and hides ownership details', async () => {

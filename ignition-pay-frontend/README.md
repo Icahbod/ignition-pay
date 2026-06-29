@@ -37,6 +37,10 @@ Open [http://localhost:3000](http://localhost:3000).
 └── lib/                    # Utilities and constants
 ```
 
+## Build and release workflow
+
+For build commands, versioning details, and troubleshooting, see [docs/build-configuration.md](docs/build-configuration.md).
+
 ## Key Features
 
 - ✨ Dark/light theme with system preference support
