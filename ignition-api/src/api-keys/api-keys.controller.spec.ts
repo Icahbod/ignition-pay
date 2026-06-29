@@ -12,6 +12,9 @@ describe('ApiKeysController', () => {
       findFirst: jest.Mock;
       update: jest.Mock;
     };
+    auditLog: {
+      create: jest.Mock;
+    };
   };
 
   beforeEach(() => {
@@ -22,6 +25,9 @@ describe('ApiKeysController', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+      },
+      auditLog: {
+        create: jest.fn(),
       },
     };
 
@@ -52,6 +58,17 @@ describe('ApiKeysController', () => {
           scope: 'read',
           prefix: expect.stringMatching(/^sk_/),
           keyHash: expect.any(String),
+        }),
+      }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'user-1',
+          action: 'ADMIN_ACTION',
+          resourceType: 'ApiKey',
+          resourceId: 'api-key-1',
+          details: expect.stringContaining('created'),
         }),
       }),
     );
@@ -103,6 +120,17 @@ describe('ApiKeysController', () => {
         data: {
           isActive: false,
         },
+      }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'user-1',
+          action: 'ADMIN_ACTION',
+          resourceType: 'ApiKey',
+          resourceId: 'api-key-1',
+          details: expect.stringContaining('revoked'),
+        }),
       }),
     );
     expect(result).toEqual({ message: 'API key revoked successfully' });

@@ -1,9 +1,12 @@
 import {
+  Body,
   ConflictException,
   Controller,
   Delete,
+  Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -60,6 +63,20 @@ export class ApiKeysController {
         keyHash,
         prefix,
         scope: 'read',
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: req.user.sub,
+        action: 'ADMIN_ACTION',
+        resourceType: 'ApiKey',
+        resourceId: apiKey.id,
+        details: JSON.stringify({
+          action: 'API_KEY_CREATED',
+          prefix,
+          scope: 'read',
+        }),
       },
     });
 
@@ -211,6 +228,18 @@ export class ApiKeysController {
     if (result.count === 0) {
       throw new NotFoundException('API key not found');
     }
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: req.user.sub,
+        action: 'ADMIN_ACTION',
+        resourceType: 'ApiKey',
+        resourceId: id,
+        details: JSON.stringify({
+          action: 'API_KEY_REVOKED',
+        }),
+      },
+    });
 
     return { message: 'API key revoked successfully' };
   }
